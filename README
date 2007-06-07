@@ -1,0 +1,18 @@
+This is a mirror of http://www.vim.org/scripts/script.php?script_id=1917
+
+When you use a database as a tool for your work, you may have queries you
+often use and don't want to write each time.
+In this case, as you are a vim user, you may dream of a way to simply create a
+menu in vim containing all your queries with a few parameters...
+This plugin is for you.
+
+It aims to let you write your queries in sql files as you would normally do it
+and then generate a menu for you to access them.
+
+
+Advertising :
+Have you heard of this other funny script ?
+
+If you find this script  too serious, try this other one : 
+http://www.vim.org/scripts/script.php?script_id=800
+With this script you'll be able to MixCase like the best Hà®d(orê m1×Càse ma$+Er and make your coding very new style ;-)

@@ -1,0 +1,199 @@
+*MySqlGenQueryMenu.txt*			MySqlGenQueryMenu		Last Change:  2007/06/01 14:04:56 .
+
+Author:       Jean-Christophe Clavier <jcclavier at free dot fr>
+
+MySqlGenQueryMenu								*MySqlGenQueryMenu*
+
+1. introduction						|MQGIntro|
+2. Global parameters					|MQGGlobalParams|
+3. How to use it now					|MQGHowTo|
+   3.1 How the parser knows how to organize the menu ?	|MQGMenuParams|
+   3.2 And what about parameters in the query ?		|MQGQueryParams|
+   3.3 Some examples to see what it looks like		|MQGExamples|
+   3.4 And now ?? How do I generate the menu ?		|MQGGenerateMenu|
+   3.5 Known (small) BUG:				|MQGBugs|
+4. Installation						|MQGInstall|
+
+==============================================================================
+1. Intoduction						*MQGIntro*
+
+When you use a database as a tool for your work, you may have queries you
+often use and don't want to write each time.
+In this case, as you are a vim user, you may dream of a way to simply create a
+menu in vim containing all your queries with a few parameters...
+This plugin is for you.
+
+It aims to let you write your queries in sql files as you would normally do it
+and then generate a menu for you to access them.
+
+It uses the DBExt Plugin to execute the queries so you'll have to install it
+if you want to use this plugin
+http://www.vim.org/scripts/script.php?script_id=356
+
+==============================================================================
+2. Global parameters					*MQGGlobalParams*
+
+To use this plugin, you have to initialize a few parameters
+
+To generate, you need >
+    g:MQGQueryFilesDir : a dir where you store your sql query files
+    g:MQGGenMenuFile   : the name (with complete path) for your menu output
+                         file (default $VIM/plugin/MQGMenu.vim)
+    g:MQGGenCmdFile    : the name (with complete path) for the command file to
+                         be generated from your sql query files
+                         (default $VIM/plugin/MQGQueriesCmdFile.vim)
+
+And, optionnaly, you can add >
+    g:MQGUserCmdFile   : a vim file containing commands you want to include in
+                         your menu (for complex querying that cannot be
+                         done in only one query)
+    g:MQGMenuRoot      : The menu name where you want to put your queries
+                         (default &Queries)
+    g:MQGCmdLogFile    : the name (with complete path) of a file to store log
+                         for insert, update and delete statements. If this
+                         global is not set, no log is written
+
+==============================================================================
+3. How to use it now					*MQGHowTo*
+
+First, choose a directory where you'll put your sql files and >
+    let g:MQGQueryFilesDir='/the/chosen/sql/dir/'
+in your .vimrc
+All the files you'll write in this directory will be analysed and transformed.
+
+Eventually, you define the queries menu root location and the names for the
+menu commands file name and the commands file name. It is better to put these
+files in your plugin directory to have them loaded at vim start.
+
+If you are like me and you want to keep a log of every update of your
+database, you can set the g:MQGCmdLogFile global in your .vimrc.
+If you set it, a log comment will be asked every time you update the database.
+
+                                                        *MQGMenuParams*
+3.1 How the parser knows how to organize the menu ?~
+===================================================
+Easy, you have a few commands to be put in you file as sql comments :
+-- GROUP: defines a sub menu
+-- MENU:  defines the menu entry
+-- FNAME: defines the name of the function to be called by the menu entry. You
+            can choose whatever unique name you want as it will be used to
+            generate the menu AND the command file. So, the name you choose
+            will always be OK (well, spaces and special caracters have to be
+            avoided of course)
+-- MENUSEP: is used to place a separator. You have to provide a unique name.
+
+The syntax for these parameters is strict :
+"--", one space, THEPARAMETER, ":", one space, then you're free.
+
+Note: in the case you already have defined some groups in your menu and want
+to add a separator in the main list, put : >
+-- GROUP: 
+-- MENUSEP: mynewseparator
+
+            AND DON'T FORGET THE SPACE AFTER "--GROUP: "
+
+                                                        *MQGQueryParams*
+3.2 And what about parameters in the query ?~
+============================================
+For queries that need parameters, you can put some between ":" wherever you
+want. In the where clause, naturally, but also in the select or from part.
+The parameter will be asked in the command line in the order they appear in
+your clause. I the same parameter appears more than once, it is asked only
+once (of course)
+
+In some case, the order of the parameters in the clause doesn't match the
+order you would like to have them asked. for this, you can put a line before
+your query :
+-- PARAM: param1, param 2
+
+TIP:
+If you want to put "in" statement in the where clause, you'll have to type the
+"', '" between the values. For example : >
+    where BILL_Id in (':inBILL_Id:')
+will ask for the inBILL_Id parameter. Type >
+    inBILL_Id : 1234', '1235', '1236
+to get the good result.
+
+                                                        *MQGExamples*
+3.3 Some examples to see what it looks like :~
+=============================================
+Example :~
+---------
+-- GROUP: Bill
+-- FNAME: RvBillHeader
+-- MENU: Bills Header
+select concat(BILL_Id, ' : ', BILL_Lib)
+  from BILL
+ where BILL_Id in (':inBILL_Id:');
+
+-- MENUSEP: SeparatorBillLines
+-- FNAME: RvBillLines
+-- MENU: Lines of a bill
+select BLNE_BILL_Id, BLNE_Id, BLNE_Lib
+  from BLNE
+ where BLNE_BILL_Id like ':likeBILL_Id:'
+   and BLNE_Id like IF (':likeBLNE_Id:'='', '%', ':likeBLNE_Id:');
+
+-- FNAME: RvUpdBillLine
+-- MENU: Update of a field in a bill line
+-- PARAM: BILL_Id, BLNE_Id
+update BLNE set :FieldToUpdate: = ':Value:'
+ where BLNE_BILL_Id = ':BILL_Id:'
+   and BLNE_Id = ':BLNE_Id:';
+
+In this last query, the order the parameters will be asked is BILL_Id,
+BLNE_Id, FieldToUpdate, Value
+FieldToUpdate is a parametric field for you to choose the column you want to
+update
+
+Note: If you decide to use the g:MQGUserCmdFile parameter to include your
+command file, the syntax, in this file, is very similar but instead of "--" at
+the beginning of the line, use '"' (the vim comment letter).
+You also don't need the FNAME parameter.
+Example :~
+---------
+" GROUP: Bill
+" MENU: Bills Headers
+command! RvBillHeader call s:RvBillHeader()
+
+                                                        *MQGGenerateMenu*
+3.4 And now ?? How do I generate the menu ?~
+===========================================
+For the first time, you'll have to do it manually. Type >
+    :MQGGenMenu
+Then, you can restart vim or use >
+    :so <What you put in g:MQGGenMenuFile>
+
+For the next time, the entries to do this will be included in the generated
+menu. You'll simply have to choose : >
+    Gen Menu File
+    Load Menu File
+
+If you have any problem, please feel free to contact me.
+
+                                                        *MQGBugs*
+3.5 Known (small) BUG:~
+======================
+The first time you execute a query with parameters, VIM may ask "Do you want
+to prompt for input variables?". Your answer has no effect on the way the
+plugin works. I simply don't know what VIM parameter should be set to avoid this.
+
+You should answer "Never" or "Always" if you don't want the message box to
+appear again.
+
+==============================================================================
+4. Installation						*MQGInstall*
+
+Note: this plugin uses python and the DBExt plugin to access the databases
+    http://www.vim.org/scripts/script.php?script_id=356
+
+Just drop this file in your plugin directory.
+
+To init the help tags, start Vim and do either
+:helptags ~/.vim/doc (for unix)
+or
+:helptags ~\vimfiles\doc (for MSWindows)
+to rebuild the tags file. Do ":help add-local-help" for more details.
+
+
+vim:tw=78:ts=8:ft=help:norl:
